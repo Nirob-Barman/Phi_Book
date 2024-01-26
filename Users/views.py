@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, login, logout
 
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 
 from rest_framework.authentication import TokenAuthentication
 
@@ -117,7 +117,7 @@ def all_urls(request):
 
 class UserUpdateView(UpdateAPIView):
     serializer_class = UserUpdateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_object(self):
         return self.request.user  # Returns the currently authenticated user
