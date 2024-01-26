@@ -5,8 +5,8 @@ from .models import CustomUser, UserDetails
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
-    UserDetailsSerializer,
-    UserUpdateSerializer
+    UserUpdateSerializer,
+    CustomUserSerializer
 )
 
 from rest_framework.views import APIView
@@ -18,18 +18,28 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 
 from django.http import JsonResponse
-from django.urls import get_resolver, URLResolver, URLPattern
+from django.urls import path, include, get_resolver, URLResolver, URLPattern
 
+
+from rest_framework.generics import UpdateAPIView
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = CustomUser.objects.all()
+    serializer_class = CustomUserSerializer
+    permission_classes = [IsAuthenticated]
 
 class UserLoginView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = UserLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        email = serializer.validated_data.get('email')
+        username = serializer.validated_data.get('username')
+        # email = serializer.validated_data.get('email')
         password = serializer.validated_data.get('password')
 
-        user = CustomUser.objects.filter(email=email).first()
+        # user = CustomUser.objects.filter(email=email).first()
+        user = CustomUser.objects.filter(username=username).first()
 
         if user and user.check_password(password):
             token, created = Token.objects.get_or_create(user=user)
@@ -37,6 +47,26 @@ class UserLoginView(APIView):
             return Response({'token': token.key, 'email': user.email, 'user_id': user.id}, status=status.HTTP_200_OK)
         else:
             return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+# class UserRegistrationView(generics.CreateAPIView):
+#     serializer_class = UserRegistrationSerializer
+
+#     def post(self, request, *args, **kwargs):
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+
+#         # Validate password and confirm_password
+#         password = serializer.validated_data.get('password')
+#         confirm_password = serializer.validated_data.get('confirm_password')
+
+#         if password != confirm_password:
+#             return Response({'detail': 'Passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
+
+#         self.perform_create(serializer)
+#         headers = self.get_success_headers(serializer.data)
+#         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
 
 class UserRegistrationView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -48,11 +78,6 @@ class UserRegistrationView(generics.CreateAPIView):
         return Response({'detail': 'User registered successfully.'}, status=status.HTTP_201_CREATED)
 
 
-class UserDetailsViewSet(viewsets.ModelViewSet):
-    queryset = UserDetails.objects.all()
-    serializer_class = UserDetailsSerializer
-    # Add any additional configurations or filters as needed
-
 
 class UserLogoutView(APIView):
     def get(self, request, *args, **kwargs):
@@ -62,31 +87,14 @@ class UserLogoutView(APIView):
         return Response({'detail': 'Logout successful'}, status=status.HTTP_200_OK)
 
 
-class UserUpdateView(generics.UpdateAPIView):
-    queryset = CustomUser.objects.all()
-    serializer_class = UserUpdateSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user
-
-
-def get_all_urls(urlpatterns, prefix=''):
-    url_list = []
-    for pattern in urlpatterns:
-        if isinstance(pattern, tuple(get_resolver(None).url_patterns)):
-            url_list.append(prefix + str(pattern.pattern))
-        elif isinstance(pattern, list):
-            url_list.extend(get_all_urls(pattern, prefix))
-    return url_list
-
 def get_all_urls(urlpatterns, prefix=''):
     url_list = []
     for pattern in urlpatterns:
         if isinstance(pattern, URLPattern):
             url_list.append(prefix + str(pattern.pattern))
         elif isinstance(pattern, URLResolver):
-            url_list.extend(get_all_urls(pattern.url_patterns,prefix + str(pattern.pattern)))
+            url_list.extend(get_all_urls(pattern.url_patterns,
+                            prefix + str(pattern.pattern)))
     return url_list
 
 
@@ -105,3 +113,20 @@ def all_urls(request):
 #         'path(\'all_urls/\', all_urls, name=\'all-urls\')',
 #     ]
 #     return JsonResponse({'urls': specific_urls})
+
+
+class UserUpdateView(UpdateAPIView):
+    serializer_class = UserUpdateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user  # Returns the currently authenticated user
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data, status=status.HTTP_200_OK)

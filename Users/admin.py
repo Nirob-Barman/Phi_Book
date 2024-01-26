@@ -25,11 +25,12 @@ class CustomUserAdmin(UserAdmin):
     list_display = ('email', 'first_name', 'last_name',
                     'is_active', 'is_staff')
     search_fields = ('email', 'first_name', 'last_name')
-    ordering = ('email',)
+    # ordering = ('email',)
+    ordering = ('username',)
 
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Personal Info', {'fields': ('first_name', 'last_name')}),
+        ('Personal Info', {'fields': ('username', 'first_name', 'last_name')}),
         ('Permissions', {'fields': ('is_active',
          'is_staff', 'groups', 'user_permissions')}),
     )
